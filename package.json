@@ -1,0 +1,56 @@
+{
+  "name": "ns-cookie",
+  "version": "1.0.0",
+  "description": "A comprehensive cookie consent management plugin with GDPR/CCPA compliance, website scanning, auto-blocking, geotargeting, and consent logging",
+  "type": "module",
+  "main": "dist/cookie.js",
+  "exports": {
+    ".": "./dist/cookie.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:prod": "npm run clean && npm run build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "cookie",
+    "consent",
+    "gdpr",
+    "ccpa",
+    "privacy",
+    "compliance",
+    "analytics",
+    "typescript",
+    "vite"
+  ],
+  "author": "Arun Solanki",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20.10.0",
+    "terser": "^5.24.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vite-plugin-dts": "^3.7.3"
+  },
+  "dependencies": {
+    "js-cookie": "^3.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/cookie-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/cookie-plugin/issues"
+  },
+  "homepage": "https://github.com/yourusername/cookie-plugin#readme"
+}
