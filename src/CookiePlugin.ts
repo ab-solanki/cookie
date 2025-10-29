@@ -108,20 +108,27 @@ export class CookiePlugin {
       return;
     }
 
-    this.log('Initializing NS Cookie plugin...');
+    try {
+      this.log('Initializing NS Cookie plugin...');
 
-    if (this.hasConsent()) {
-      this.log('Consent already exists, applying settings...');
-      this.applyConsent();
-    } else if (this.config.autoShow) {
-      this.showCookieBar();
+      // Inject CSS styles first
+      this.injectStyles();
+
+      if (this.hasConsent()) {
+        this.log('Consent already exists, applying settings...');
+        this.applyConsent();
+      } else if (this.config.autoShow) {
+        this.showCookieBar();
+      }
+
+      if (this.config.showOnScroll) {
+        this.setupScrollListener();
+      }
+
+      this.log('NS Cookie plugin initialized successfully');
+    } catch (error) {
+      console.error('[NS Cookie] Initialization error:', error);
     }
-
-    if (this.config.showOnScroll) {
-      this.setupScrollListener();
-    }
-
-    this.log('NS Cookie plugin initialized successfully');
   }
 
   /**
@@ -131,6 +138,423 @@ export class CookiePlugin {
     if (this.config.debug) {
       console.log(`[NS Cookie] ${message}`, ...args);
     }
+  }
+
+  /**
+   * Inject CSS styles for cookieBar and modal
+   */
+  private injectStyles(): void {
+    // Check if styles already injected
+    if (document.getElementById('ns-cookie-styles')) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = 'ns-cookie-styles';
+    style.textContent = this.getCSSStyles();
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Get CSS styles for cookieBar and modal
+   */
+  private getCSSStyles(): string {
+    return `
+      /* NS Cookie Plugin Styles */
+      .ns-cookie-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        z-index: 999999;
+        background: #ffffff;
+        border-top: 1px solid #e0e0e0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        font-family: var(--ns-cookie-font-family, system-ui, sans-serif);
+        font-size: var(--ns-cookie-font-size, 14px);
+        opacity: 0;
+        transform: translateY(100%);
+        transition: all 0.3s ease-in-out;
+      }
+
+      .ns-cookie-bar.ns-cookie-show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .ns-cookie-bar.ns-cookie-hide {
+        opacity: 0;
+        transform: translateY(100%);
+      }
+
+      .ns-cookie-bar.ns-cookie-top {
+        top: 0;
+        bottom: auto;
+        border-top: none;
+        border-bottom: 1px solid #e0e0e0;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        transform: translateY(-100%);
+      }
+
+      .ns-cookie-bar.ns-cookie-top.ns-cookie-show {
+        transform: translateY(0);
+      }
+
+      .ns-cookie-bar.ns-cookie-top.ns-cookie-hide {
+        transform: translateY(-100%);
+      }
+
+      .ns-cookie-bar.ns-cookie-bottom {
+        bottom: 0;
+        top: auto;
+      }
+
+      .ns-cookie-bar.ns-cookie-dark {
+        background: #2c3e50;
+        color: #ffffff;
+        border-color: #34495e;
+      }
+
+      .ns-cookie-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .ns-cookie-text {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .ns-cookie-title {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: inherit;
+      }
+
+      .ns-cookie-description {
+        margin: 0;
+        line-height: 1.5;
+        color: inherit;
+        opacity: 0.9;
+      }
+
+      .ns-cookie-actions {
+        display: flex;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .ns-cookie-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: var(--ns-cookie-border-radius, 8px);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        min-width: 100px;
+      }
+
+      .ns-cookie-btn-primary {
+        background: var(--ns-cookie-primary-color, #007bff);
+        color: #ffffff;
+      }
+
+      .ns-cookie-btn-primary:hover {
+        background: #0056b3;
+        transform: translateY(-1px);
+      }
+
+      .ns-cookie-btn-secondary {
+        background: var(--ns-cookie-secondary-color, #6c757d);
+        color: #ffffff;
+      }
+
+      .ns-cookie-btn-secondary:hover {
+        background: #545b62;
+        transform: translateY(-1px);
+      }
+
+      .ns-cookie-btn-outline {
+        background: transparent;
+        color: var(--ns-cookie-primary-color, #007bff);
+        border: 2px solid var(--ns-cookie-primary-color, #007bff);
+      }
+
+      .ns-cookie-btn-outline:hover {
+        background: var(--ns-cookie-primary-color, #007bff);
+        color: #ffffff;
+        transform: translateY(-1px);
+      }
+
+      .ns-cookie-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999998;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .ns-cookie-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .ns-cookie-modal.ns-cookie-modal-show {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .ns-cookie-modal.ns-cookie-modal-hide {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .ns-cookie-modal-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+      }
+
+      .ns-cookie-modal-content {
+        background: #ffffff;
+        border-radius: var(--ns-cookie-border-radius, 8px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+      }
+
+      .ns-cookie-modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .ns-cookie-modal-header h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .ns-cookie-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+      }
+
+      .ns-cookie-close:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      .ns-cookie-modal-body {
+        padding: 20px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .ns-cookie-modal-description {
+        margin: 0 0 20px 0;
+        color: #666;
+        line-height: 1.5;
+      }
+
+      .ns-cookie-categories {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .ns-cookie-category {
+        padding: 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: var(--ns-cookie-border-radius, 8px);
+        background: #f9f9f9;
+      }
+
+      .ns-cookie-category-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .ns-cookie-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .ns-cookie-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .ns-cookie-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 24px;
+      }
+
+      .ns-cookie-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      .ns-cookie-switch input:checked + .ns-cookie-slider {
+        background-color: var(--ns-cookie-primary-color, #007bff);
+      }
+
+      .ns-cookie-switch input:checked + .ns-cookie-slider:before {
+        transform: translateX(26px);
+      }
+
+      .ns-cookie-switch input:disabled + .ns-cookie-slider {
+        background-color: #28a745;
+        cursor: not-allowed;
+      }
+
+      .ns-cookie-category-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .ns-cookie-category-info h4 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .ns-cookie-category-info p {
+        margin: 0;
+        color: #666;
+        line-height: 1.4;
+        font-size: 14px;
+      }
+
+      .ns-cookie-required {
+        background: #28a745;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        display: inline-block;
+      }
+
+      .ns-cookie-modal-footer {
+        padding: 20px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .ns-cookie-content {
+          flex-direction: column;
+          align-items: stretch;
+          text-align: center;
+        }
+
+        .ns-cookie-actions {
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .ns-cookie-btn {
+          min-width: 80px;
+          padding: 8px 16px;
+        }
+
+        .ns-cookie-modal-content {
+          width: 95%;
+          margin: 20px;
+        }
+
+        .ns-cookie-category-header {
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .ns-cookie-switch {
+          align-self: flex-start;
+        }
+      }
+
+      /* Dark theme adjustments */
+      .ns-cookie-bar.ns-cookie-dark .ns-cookie-btn-outline {
+        color: #ffffff;
+        border-color: #ffffff;
+      }
+
+      .ns-cookie-bar.ns-cookie-dark .ns-cookie-btn-outline:hover {
+        background: #ffffff;
+        color: #2c3e50;
+      }
+    `;
   }
 
   /**
@@ -176,15 +600,23 @@ export class CookiePlugin {
    * Show cookie consent bar
    */
   private showCookieBar(): void {
-    if (this.cookieBar) return;
+    try {
+      // Prevent duplicate cookie bars
+      if (this.cookieBar || document.querySelector('.ns-cookie-bar')) {
+        this.log('Cookie bar already exists, skipping creation');
+        return;
+      }
 
-    this.createCookieBar();
-    this.attachEventListeners();
+      this.createCookieBar();
+      this.attachEventListeners();
 
-    if (this.config.ui.animation) {
-      requestAnimationFrame(() => {
-        this.cookieBar?.classList.add('ns-cookie-show');
-      });
+      if (this.config.ui.animation) {
+        requestAnimationFrame(() => {
+          this.cookieBar?.classList.add('ns-cookie-show');
+        });
+      }
+    } catch (error) {
+      console.error('[NS Cookie] Error showing cookie bar:', error);
     }
   }
 
@@ -192,19 +624,27 @@ export class CookiePlugin {
    * Create cookie bar HTML
    */
   private createCookieBar(): void {
-    const bar = document.createElement('div');
-    bar.className = `ns-cookie-bar ns-cookie-${this.config.position} ns-cookie-${this.config.theme}`;
-    bar.innerHTML = this.getCookieBarHTML();
+    try {
+      const bar = document.createElement('div');
+      bar.className = `ns-cookie-bar ns-cookie-${this.config.position} ns-cookie-${this.config.theme}`;
+      bar.innerHTML = this.getCookieBarHTML();
 
-    if (this.config.ui.backdrop) {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'ns-cookie-backdrop';
-      document.body.appendChild(backdrop);
+      // Create backdrop if enabled
+      if (this.config.ui.backdrop) {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'ns-cookie-backdrop';
+        backdrop.style.opacity = '1';
+        document.body.appendChild(backdrop);
+      }
+
+      document.body.appendChild(bar);
+      this.cookieBar = bar;
+      this.applyCustomStyles();
+      
+      this.log('Cookie bar created successfully');
+    } catch (error) {
+      console.error('[NS Cookie] Error creating cookie bar:', error);
     }
-
-    document.body.appendChild(bar);
-    this.cookieBar = bar;
-    this.applyCustomStyles();
   }
 
   /**
@@ -238,9 +678,24 @@ export class CookiePlugin {
   private attachEventListeners(): void {
     if (!this.cookieBar) return;
 
-    this.cookieBar.addEventListener('click', (event) => {
+    try {
+      // Use event delegation for better performance and cleanup
+      this.cookieBar.addEventListener('click', this.handleCookieBarClick.bind(this));
+      this.log('Event listeners attached to cookie bar');
+    } catch (error) {
+      console.error('[NS Cookie] Error attaching event listeners:', error);
+    }
+  }
+
+  /**
+   * Handle cookie bar click events
+   */
+  private handleCookieBarClick(event: Event): void {
+    try {
       const target = event.target as HTMLElement;
       const action = target.dataset.action;
+
+      if (!action) return;
 
       switch (action) {
         case 'accept':
@@ -253,37 +708,52 @@ export class CookiePlugin {
           this.showCustomizeModal();
           break;
       }
-    });
+    } catch (error) {
+      console.error('[NS Cookie] Error handling cookie bar click:', error);
+    }
   }
 
   /**
    * Show customize modal
    */
   private showCustomizeModal(): void {
-    if (this.modal) return;
+    try {
+      // Prevent duplicate modals
+      if (this.modal || document.querySelector('.ns-cookie-modal')) {
+        this.log('Modal already exists, skipping creation');
+        return;
+      }
 
-    this.hideCookieBar();
-    this.createModal();
+      this.hideCookieBar();
+      this.createModal();
+    } catch (error) {
+      console.error('[NS Cookie] Error showing customize modal:', error);
+    }
   }
 
   /**
    * Create customize modal
    */
   private createModal(): void {
-    const modal = document.createElement('div');
-    modal.className = 'ns-cookie-modal';
-    modal.innerHTML = this.getModalHTML();
-    
-    document.body.appendChild(modal);
-    this.modal = modal;
+    try {
+      const modal = document.createElement('div');
+      modal.className = 'ns-cookie-modal';
+      modal.innerHTML = this.getModalHTML();
+      
+      document.body.appendChild(modal);
+      this.modal = modal;
 
-    if (this.config.ui.animation) {
-      requestAnimationFrame(() => {
-        modal.classList.add('ns-cookie-modal-show');
-      });
+      if (this.config.ui.animation) {
+        requestAnimationFrame(() => {
+          modal.classList.add('ns-cookie-modal-show');
+        });
+      }
+
+      this.attachModalEventListeners();
+      this.log('Modal created successfully');
+    } catch (error) {
+      console.error('[NS Cookie] Error creating modal:', error);
     }
-
-    this.attachModalEventListeners();
   }
 
   /**
@@ -344,9 +814,24 @@ export class CookiePlugin {
   private attachModalEventListeners(): void {
     if (!this.modal) return;
 
-    this.modal.addEventListener('click', (event) => {
+    try {
+      // Use event delegation for better performance and cleanup
+      this.modal.addEventListener('click', this.handleModalClick.bind(this));
+      this.log('Event listeners attached to modal');
+    } catch (error) {
+      console.error('[NS Cookie] Error attaching modal event listeners:', error);
+    }
+  }
+
+  /**
+   * Handle modal click events
+   */
+  private handleModalClick(event: Event): void {
+    try {
       const target = event.target as HTMLElement;
       const action = target.dataset.action;
+
+      if (!action) return;
 
       switch (action) {
         case 'close':
@@ -356,31 +841,39 @@ export class CookiePlugin {
           this.saveCustomPreferences();
           break;
       }
-    });
+    } catch (error) {
+      console.error('[NS Cookie] Error handling modal click:', error);
+    }
   }
 
   /**
    * Accept all cookies
    */
   private acceptAll(): void {
-    const consent: ConsentData = {
-      timestamp: Date.now(),
-      version: this.config.version,
-      categories: {
-        essential: true,
-        analytics: true,
-        marketing: true,
-        preferences: true
+    try {
+      const consent: ConsentData = {
+        timestamp: Date.now(),
+        version: this.config.version,
+        categories: {
+          essential: true,
+          analytics: true,
+          marketing: true,
+          preferences: true
+        }
+      };
+
+      this.saveConsent(consent);
+      this.applyConsent();
+      this.hideCookieBar();
+      this.hideModal();
+
+      if (this.config.onAccept) {
+        this.config.onAccept(consent);
       }
-    };
 
-    this.saveConsent(consent);
-    this.applyConsent();
-    this.hideCookieBar();
-    this.hideModal();
-
-    if (this.config.onAccept) {
-      this.config.onAccept(consent);
+      this.log('All cookies accepted');
+    } catch (error) {
+      console.error('[NS Cookie] Error accepting all cookies:', error);
     }
   }
 
@@ -388,24 +881,30 @@ export class CookiePlugin {
    * Reject all non-essential cookies
    */
   private rejectAll(): void {
-    const consent: ConsentData = {
-      timestamp: Date.now(),
-      version: this.config.version,
-      categories: {
-        essential: true,
-        analytics: false,
-        marketing: false,
-        preferences: false
+    try {
+      const consent: ConsentData = {
+        timestamp: Date.now(),
+        version: this.config.version,
+        categories: {
+          essential: true,
+          analytics: false,
+          marketing: false,
+          preferences: false
+        }
+      };
+
+      this.saveConsent(consent);
+      this.applyConsent();
+      this.hideCookieBar();
+      this.hideModal();
+
+      if (this.config.onReject) {
+        this.config.onReject(consent);
       }
-    };
 
-    this.saveConsent(consent);
-    this.applyConsent();
-    this.hideCookieBar();
-    this.hideModal();
-
-    if (this.config.onReject) {
-      this.config.onReject(consent);
+      this.log('Non-essential cookies rejected');
+    } catch (error) {
+      console.error('[NS Cookie] Error rejecting cookies:', error);
     }
   }
 
@@ -415,27 +914,33 @@ export class CookiePlugin {
   private saveCustomPreferences(): void {
     if (!this.modal) return;
 
-    const categories: Record<string, boolean> = {};
-    this.modal.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-      const htmlInput = input as HTMLInputElement;
-      const category = htmlInput.dataset.category;
-      if (category) {
-        categories[category] = htmlInput.checked;
+    try {
+      const categories: Record<string, boolean> = {};
+      this.modal.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        const htmlInput = input as HTMLInputElement;
+        const category = htmlInput.dataset.category;
+        if (category) {
+          categories[category] = htmlInput.checked;
+        }
+      });
+
+      const consent: ConsentData = {
+        timestamp: Date.now(),
+        version: this.config.version,
+        categories
+      };
+
+      this.saveConsent(consent);
+      this.applyConsent();
+      this.hideModal();
+
+      if (this.config.onSave) {
+        this.config.onSave(consent);
       }
-    });
 
-    const consent: ConsentData = {
-      timestamp: Date.now(),
-      version: this.config.version,
-      categories
-    };
-
-    this.saveConsent(consent);
-    this.applyConsent();
-    this.hideModal();
-
-    if (this.config.onSave) {
-      this.config.onSave(consent);
+      this.log('Custom preferences saved');
+    } catch (error) {
+      console.error('[NS Cookie] Error saving custom preferences:', error);
     }
   }
 
@@ -533,13 +1038,27 @@ export class CookiePlugin {
   private hideCookieBar(): void {
     if (!this.cookieBar) return;
 
-    this.cookieBar.classList.remove('ns-cookie-show');
-    this.cookieBar.classList.add('ns-cookie-hide');
+    try {
+      this.cookieBar.classList.remove('ns-cookie-show');
+      this.cookieBar.classList.add('ns-cookie-hide');
 
-    setTimeout(() => {
-      this.cookieBar?.remove();
-      this.cookieBar = null;
-    }, 300);
+      setTimeout(() => {
+        if (this.cookieBar) {
+          this.cookieBar.remove();
+          this.cookieBar = null;
+        }
+      }, 300);
+
+      // Remove backdrop
+      const backdrop = document.querySelector('.ns-cookie-backdrop');
+      if (backdrop) {
+        backdrop.remove();
+      }
+
+      this.log('Cookie bar hidden successfully');
+    } catch (error) {
+      console.error('[NS Cookie] Error hiding cookie bar:', error);
+    }
   }
 
   /**
@@ -548,13 +1067,21 @@ export class CookiePlugin {
   private hideModal(): void {
     if (!this.modal) return;
 
-    this.modal.classList.remove('ns-cookie-modal-show');
-    this.modal.classList.add('ns-cookie-modal-hide');
+    try {
+      this.modal.classList.remove('ns-cookie-modal-show');
+      this.modal.classList.add('ns-cookie-modal-hide');
 
-    setTimeout(() => {
-      this.modal?.remove();
-      this.modal = null;
-    }, 300);
+      setTimeout(() => {
+        if (this.modal) {
+          this.modal.remove();
+          this.modal = null;
+        }
+      }, 300);
+
+      this.log('Modal hidden successfully');
+    } catch (error) {
+      console.error('[NS Cookie] Error hiding modal:', error);
+    }
   }
 
   /**
@@ -636,16 +1163,41 @@ export class CookiePlugin {
    * Destroy plugin and cleanup
    */
   public destroy(): void {
-    if (this.scrollListener) {
-      window.removeEventListener('scroll', this.scrollListener);
+    try {
+      // Remove scroll listener
+      if (this.scrollListener) {
+        window.removeEventListener('scroll', this.scrollListener);
+        this.scrollListener = undefined;
+      }
+
+      // Hide and cleanup UI elements
+      this.hideCookieBar();
+      this.hideModal();
+
+      // Remove any remaining backdrop elements
+      const backdrops = document.querySelectorAll('.ns-cookie-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+
+      // Remove any remaining cookie bars or modals
+      const cookieBars = document.querySelectorAll('.ns-cookie-bar');
+      cookieBars.forEach(bar => bar.remove());
+
+      const modals = document.querySelectorAll('.ns-cookie-modal');
+      modals.forEach(modal => modal.remove());
+
+      // Remove injected styles
+      const styles = document.getElementById('ns-cookie-styles');
+      if (styles) {
+        styles.remove();
+      }
+
+      // Reset state
+      this.cookieBar = null;
+      this.modal = null;
+
+      this.log('Cookie plugin destroyed and cleaned up');
+    } catch (error) {
+      console.error('[NS Cookie] Error during destroy:', error);
     }
-
-    this.hideCookieBar();
-    this.hideModal();
-
-    const backdrop = document.querySelector('.ns-cookie-backdrop');
-    backdrop?.remove();
-
-    this.log('Cookie plugin destroyed');
   }
 }

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Plugin with Backend Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .demo-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cookie Plugin with Backend Configuration</h1>
+        
+        <div class="demo-section">
+            <h2>Language Management</h2>
+            <button class="button" onclick="setLanguage('en')">English</button>
+            <button class="button" onclick="setLanguage('de')">Deutsch</button>
+            <button class="button" onclick="setLanguage('fr')">Français</button>
+            <button class="button" onclick="setLanguage('es')">Español</button>
+            <div id="current-lang" class="status info">Current Language: Loading...</div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Configuration Management</h2>
+            <button class="button" onclick="refreshConfig()">Refresh Config from Backend</button>
+            <button class="button" onclick="showCurrentConfig()">Show Current Config</button>
+            <button class="button" onclick="getAvailableLanguages()">Get Available Languages</button>
+            <div id="config-status" class="status info">Configuration Status: Ready</div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Cookie Plugin Controls</h2>
+            <button class="button" onclick="showCookieBar()">Show Cookie Bar</button>
+            <button class="button" onclick="hideCookieBar()">Hide Cookie Bar</button>
+            <button class="button" onclick="resetConsent()">Reset Consent</button>
+            <button class="button" onclick="destroyPlugin()">Destroy Plugin</button>
+            <div id="plugin-status" class="status info">Plugin Status: Ready</div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Consent Information</h2>
+            <div id="consent-info" class="status info">No consent data available</div>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
+    <script src="dist/cookie.js"></script>
+    
+    <script>
+        let cookiePlugin = null;
+        const statusDiv = document.getElementById('plugin-status');
+        const configStatusDiv = document.getElementById('config-status');
+        const consentInfoDiv = document.getElementById('consent-info');
+        const currentLangDiv = document.getElementById('current-lang');
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateConfigStatus(message, type = 'info') {
+            configStatusDiv.textContent = message;
+            configStatusDiv.className = `status ${type}`;
+        }
+
+        function updateConsentInfo() {
+            if (cookiePlugin) {
+                const consent = cookiePlugin.getConsent();
+                if (consent) {
+                    consentInfoDiv.innerHTML = `
+                        <strong>Consent Data:</strong><br>
+                        Timestamp: ${new Date(consent.timestamp).toLocaleString()}<br>
+                        Version: ${consent.version}<br>
+                        Categories: ${JSON.stringify(consent.categories, null, 2)}
+                    `;
+                } else {
+                    consentInfoDiv.textContent = 'No consent data available';
+                }
+            } else {
+                consentInfoDiv.textContent = 'Plugin not initialized';
+            }
+        }
+
+        // Initialize plugin with backend configuration
+        async function initializePlugin() {
+            try {
+                updateStatus('Initializing plugin with backend configuration...', 'info');
+                
+                // Backend configuration options
+                const backendOptions = {
+                    apiEndpoint: 'http://localhost:3000/api/cookie-config', // Your backend API
+                    language: 'en', // Default language
+                    enableCache: true,
+                    cacheTimeout: 5 * 60 * 1000, // 5 minutes
+                    fallbackConfig: {
+                        // Fallback configuration if backend is unavailable
+                        texts: {
+                            title: 'Cookie Consent (Fallback)',
+                            description: 'We use cookies to enhance your browsing experience.',
+                            acceptAll: 'Accept All',
+                            rejectAll: 'Reject All',
+                            customize: 'Customize'
+                        }
+                    }
+                };
+
+                // User configuration (can override backend settings)
+                const userConfig = {
+                    debug: true,
+                    autoShow: false, // We'll control it manually
+                    onAccept: (consent) => {
+                        updateStatus('All cookies accepted!', 'success');
+                        updateConsentInfo();
+                    },
+                    onReject: (consent) => {
+                        updateStatus('Non-essential cookies rejected!', 'success');
+                        updateConsentInfo();
+                    },
+                    onSave: (consent) => {
+                        updateStatus('Custom preferences saved!', 'success');
+                        updateConsentInfo();
+                    }
+                };
+
+                // Initialize the enhanced plugin
+                cookiePlugin = new CookiePluginWithBackend(userConfig, backendOptions);
+                
+                // Wait a bit for initialization
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                updateStatus('Plugin initialized successfully with backend configuration!', 'success');
+                updateConfigStatus('Configuration loaded from backend', 'success');
+                updateConsentInfo();
+                
+                // Update current language display
+                const currentLang = cookiePlugin.getCurrentLanguage();
+                currentLangDiv.textContent = `Current Language: ${currentLang}`;
+                
+            } catch (error) {
+                updateStatus(`Error initializing plugin: ${error.message}`, 'error');
+                updateConfigStatus('Failed to load configuration from backend', 'error');
+            }
+        }
+
+        // Language management functions
+        async function setLanguage(language) {
+            try {
+                if (!cookiePlugin) {
+                    updateConfigStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                
+                updateConfigStatus(`Switching to language: ${language}...`, 'info');
+                await cookiePlugin.setLanguage(language);
+                
+                updateConfigStatus(`Language switched to: ${language}`, 'success');
+                currentLangDiv.textContent = `Current Language: ${language}`;
+                
+            } catch (error) {
+                updateConfigStatus(`Error switching language: ${error.message}`, 'error');
+            }
+        }
+
+        async function refreshConfig() {
+            try {
+                if (!cookiePlugin) {
+                    updateConfigStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                
+                updateConfigStatus('Refreshing configuration from backend...', 'info');
+                await cookiePlugin.refreshConfig();
+                
+                updateConfigStatus('Configuration refreshed successfully', 'success');
+                
+            } catch (error) {
+                updateConfigStatus(`Error refreshing configuration: ${error.message}`, 'error');
+            }
+        }
+
+        async function getAvailableLanguages() {
+            try {
+                if (!cookiePlugin) {
+                    updateConfigStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                
+                updateConfigStatus('Fetching available languages...', 'info');
+                const languages = await cookiePlugin.getAvailableLanguages();
+                
+                updateConfigStatus(`Available languages: ${languages.join(', ')}`, 'success');
+                
+            } catch (error) {
+                updateConfigStatus(`Error fetching languages: ${error.message}`, 'error');
+            }
+        }
+
+        function showCurrentConfig() {
+            if (!cookiePlugin) {
+                updateConfigStatus('Plugin not initialized', 'error');
+                return;
+            }
+            
+            const config = cookiePlugin.config;
+            updateConfigStatus(`Current config loaded. Title: "${config.texts.title}"`, 'success');
+        }
+
+        // Plugin control functions
+        function showCookieBar() {
+            try {
+                if (!cookiePlugin) {
+                    updateStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                cookiePlugin.show();
+                updateStatus('Cookie bar shown', 'success');
+            } catch (error) {
+                updateStatus(`Error showing cookie bar: ${error.message}`, 'error');
+            }
+        }
+
+        function hideCookieBar() {
+            try {
+                if (!cookiePlugin) {
+                    updateStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                cookiePlugin.hide();
+                updateStatus('Cookie bar hidden', 'success');
+            } catch (error) {
+                updateStatus(`Error hiding cookie bar: ${error.message}`, 'error');
+            }
+        }
+
+        function resetConsent() {
+            try {
+                if (!cookiePlugin) {
+                    updateStatus('Plugin not initialized', 'error');
+                    return;
+                }
+                cookiePlugin.reset();
+                updateStatus('Consent reset', 'success');
+                updateConsentInfo();
+            } catch (error) {
+                updateStatus(`Error resetting consent: ${error.message}`, 'error');
+            }
+        }
+
+        function destroyPlugin() {
+            try {
+                if (!cookiePlugin) {
+                    updateStatus('Plugin already destroyed or not initialized', 'error');
+                    return;
+                }
+                cookiePlugin.destroy();
+                cookiePlugin = null;
+                updateStatus('Plugin destroyed. Refresh page to reinitialize.', 'success');
+                updateConfigStatus('Plugin destroyed', 'info');
+                consentInfoDiv.textContent = 'Plugin destroyed - no data available';
+            } catch (error) {
+                updateStatus(`Error destroying plugin: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePlugin);
+    </script>
+</body>
+</html>
+

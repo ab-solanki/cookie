@@ -20,7 +20,11 @@ export default defineConfig({
         // Optimize chunk splitting
         manualChunks: undefined,
         // Minify and optimize
-        compact: true
+        compact: true,
+        // Ensure proper UMD export
+        exports: 'named',
+        // Fix UMD wrapper to properly expose CookiePlugin
+        name: 'CookiePlugin'
       }
     },
     // Use Vite's built-in compression
